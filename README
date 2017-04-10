@@ -1,0 +1,103 @@
+README
+
+COMP 304 Spring 2017 Project-1
+Implemented by:
+Zafer Çavdar - 49995
+Çisem Altan - 49824
+
+included files:
+*myshell.c : the shell code
+*processInfo.c : the kernel module
+*Makefile: make file for processInfo.c
+*beep.mp3: a short sound file to check muzik command
+*SS: screenshots of fcdsame - custom command-
+
+DEPENDENCIES in this project:
+
+Please install sox library to play musics from terminal and properly execute muzik command.
+(sudo apt-get install sox)
+
+------------Project 1------------
+
+Part 1
+In this project, we created a shell -myshell-  which executes linux commands. With the help of provided parseCommand function, commands are read and parsed. myshell executes them by forking a child process and changing its content with execv. Since commands are divided in two seperate directories (/bin and /usr/bin), we specified two different paths for execv. When execv failes to execute command with first path, it returns an integer -status- smaller than zero and for the cases which status is negative, execv uses the second path. A variable, background, is also checked for every command, it states whether the process would be run in background or foreground. If it is to be run in background, the parent process does not wait for its termination.
+
+Part 2
+We created a history feature for this part. To store last ten commands which are written to the command line by the user, we used an fixed size array that can store up to 100 commands. Any command that is not equal to history, !! or !x (x=integer) is kept in history and when the user prompts "history", the last 10 commands are printed. !! alters the args array with last command in the history and executes it. !x selects x'th command from the history and selects it.
+
+We have a problem with up/down keys. Although we used signal.h class, we could not captured up or down arrow keys.
+
+Part 3
++bookmark: We created bookmark command to keep some commands to execute later. They are stored in a two dimensional array. 
+
+$bookmark "something"		//stores "something" command in bookmark[0] with the help of createBookmark function.
+
+$bookmark -l			//lists all bookmarks stored in the bookmark array using displayBookmarks function. In this situation, it outputs like this:
+0 "something"
+
+$bookmark -i 0			//executes the corresponding bookmark to the specified number after -i parameter using execBookmark function. In our example, it will be same with executing "$something".
+
+$bookmark -d 0			//deletes the zeroth bookmark from the array and shifts the remaining bookmarks.
+
++muzik: This command creates a crontab with user specified time to play an audio file every day. To execute muzik, the program creates a file, copies the content of the crontab file to this file and adds the new cron job at the end of the file. After that, it assigns the new file as crontab file. And we did not forget to start the cron service. To play the mp3 or wav files, we used a linux sound processing program called sox.(if not installed, sudo apt-get install sox). sox provides that "play music_file.mp3" plays the music in terminal.
+
+$muzik 7.15 in-the-end.mp3	//creates cron job such that in-the-end.mp3 would play everyday at 7.15
+$muzik -r 7.15			//clears the crontab entry with the time 7.15
+
++codesearch: It searches for a keyword or a phrase in .c, .C, .h, .H, .cpp, .c++ files and if it finds something, returns the name of the file, line number and the whole line where keyword is present. We implemented codesearch with executing grep command and took advantage of its useful parameters. In addition to this, dirent.h library helped a lot about the directories. We check 2 things: is it recursive? is it a phrase or not? This creates 4 cases, so we handled them seperately.
+Parameters we used:
+-H: to print the file name
+-s: not to print error messages for unreadable files
+-n: to print the number of the line that contains the keyword/phrase
+-r: to search in the subdirectories
+--binary-file=without-match:
+
+$codesearch "perror"		//searches for "perror" keyword just in the current directory and it outputs:
+strlen.c:74:    strcpy(str4, "perror\0");
+fork.c:26:      perror("Error ");
+fork.c:36:      perror("Error ");
+fgh.cpp:9:perror
+myshell-template.c:359:    perror("error reading the command");
+search.c:12:                perror("could not find the file");
+asd:1:perror
+myshell.c:135:      perror("error reading the command");
+
+$codesearch -r "perror"		//searches for "perror" keyword in all subdirectories. It outputs:
+strlen.c:74:    strcpy(str4, "perror\0");
+fork.c:26:      perror("Error ");
+fork.c:36:      perror("Error ");
+cisem2/hed.h:3:perror burada hey
+cisem2/hed.h:6:ve burada perror
+fgh.cpp:9:perror
+myshell-template.c:361:    perror("error reading the command");
+search.c:12:                perror("could not find the file");
+asd:1:perror
+myshell.c:135:      perror("error reading the command");
+
+$codesearch "process id"	//searches for "process id" just in the current directory and it outputs:
+myshell-template.c:29:  pid_t child;            		/* process id of the child process */
+myshell.c:23:  pid_t child;            		/* process id of the child process */
+
+$codesearch -r "process id"	//searches for "process id" in all subdirectories and it outputs:
+cisem2/hed.h:7: process id is here!
+myshell-template.c:29:  pid_t child;            		/* process id of the child process */
+myshell.c:23:  pid_t child;            		/* process id of the child process */
+
++fcdsame(custom command) dir1 dir2: fcdsame takes two arguments, dir1, dir2 and compares the file names in these directories. If a file exists in both directories, it creates a folder on desktop called "commons" and move one copy of this file to commons folder. It deletes duplicate files from both directories. This command is useful if you backup your phone each week and want to find which files are newly created during last week and which ones also exist in previous backups.
+file1 -> dc1.txt dc2.txt dc3.txt dc4.txt
+file2 -> dc1.txt dc2.txt ec3.txt
+
+$  fcdsame file1 file2
+dc2.txt has been deleted from folders and moved to Desktop.
+dc1.txt has been deleted from folders and moved to Desktop.  
+
+Part 4: processInfo.c is a kernel module that takes exactly 2 arguments processID and processPrio.
+We get the process list using pre-defined macro current and for each process, we check if the processID is equal to pid or not.
+Once we find the correct process, then we print the necessary task_struct fiels to the kernel using printk.
+After printing all, priority of the process is substituted with given parameter processPrio and new prio is printed.
+
+We created a make file that generates processInfo.ko file.
+When we prompt processInfo (any int x) (any int y) to our shell, we first call sudo rmmod processInfo command using execv and remove if exists.
+Then, it calls sudo insmod processInfo.ko processID=x processPrio=y using execv
+Then, it calls dmesg to see all the process info.
+
